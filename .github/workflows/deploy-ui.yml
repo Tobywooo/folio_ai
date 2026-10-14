@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PYTHON_VERSION: "3.13"   # matches python_version in ui/SPACE_README.md
+  PYTHON_VERSION: "3.12"   # matches python_version in ui/SPACE_README.md (ZeroGPU Spaces support 3.12 / 3.10)
   GRADIO_VERSION: "5.50.0" # Gradio the Space runs; keep within ui/requirements.txt's range
 
 jobs:

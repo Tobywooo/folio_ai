@@ -16,6 +16,18 @@ from api_client import Backend, BackendError
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
+# Hugging Face ZeroGPU hardware won't start an app without at least one @spaces.GPU function. This app does no GPU
+# work (the models run behind the Azure backend), so register a placeholder that is never called. The `spaces`
+# package only exists on Spaces; locally the import fails and nothing happens.
+try:
+    import spaces
+
+    @spaces.GPU
+    def _zerogpu_placeholder() -> None:
+        """Never called."""
+except ImportError:
+    pass
+
 backend = Backend(os.getenv("BACKEND_URL", "http://localhost:7071/api"), os.getenv("BACKEND_FUNCTION_KEY", ""))
 
 RETRIEVAL_CHOICES = [

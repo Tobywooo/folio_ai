@@ -5,7 +5,7 @@ colorFrom: blue
 colorTo: indigo
 sdk: gradio
 sdk_version: "{{GRADIO_VERSION}}"
-python_version: "3.13"
+python_version: "3.12"
 app_file: app.py
 pinned: false
 short_description: Notebook-style RAG study assistant with citations

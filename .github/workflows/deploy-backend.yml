@@ -157,14 +157,22 @@ jobs:
         env:
           APP: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
           RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+          HOST_OVERRIDE: ${{ vars.AZURE_FUNCTIONAPP_HOST }}   # optional: the app's "Default domain" from the portal
         run: |
-          host=$(az functionapp show -n "$APP" -g "$RG" --query "defaultHostName || hostNames[0]" -o tsv)
+          site_id=$(az resource show -g "$RG" -n "$APP" --resource-type Microsoft.Web/sites --query id -o tsv)
+          # Flex Consumption apps can have a unique default domain; read it from the ARM resource itself.
+          host="${HOST_OVERRIDE#https://}"
+          host="${host%%/*}"
           if [ -z "$host" ]; then
-            echo "::error::Could not read the Function App's hostname (check AZURE_FUNCTIONAPP_NAME / AZURE_RESOURCE_GROUP)."
+            host=$(az resource show --ids "$site_id" --query "properties.defaultHostName || properties.hostNames[0] || properties.enabledHostNames[0]" -o tsv)
+          fi
+          if [ -z "$host" ]; then
+            echo "::error::Could not read the Function App's hostname. Set the repo variable AZURE_FUNCTIONAPP_HOST to its Default domain."
             exit 1
           fi
           echo "Health check URL: https://$host/api/health"
-          key=$(az functionapp keys list -n "$APP" -g "$RG" --query functionKeys.default -o tsv)
+          key=$(az rest --method post --url "https://management.azure.com${site_id}/host/default/listkeys?api-version=2024-04-01" \
+                --query "functionKeys.default" -o tsv)
           if [ -z "$key" ]; then
             echo "::error::Could not read the Function App's default function key."
             exit 1

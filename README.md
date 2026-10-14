@@ -143,4 +143,25 @@ JSON copy. Fill in the answer-quality column and conclusions.
 ## Deployment
 
 The Function App and the Gradio UI deploy separately; API keys are stored as Function App environment variables and
-GitHub Secrets, never in the repository. GitHub Actions workflows: _to be added_.
+GitHub Secrets, never in the repository.
+
+### Backend → Azure Functions (`.github/workflows/deploy-backend.yml`)
+
+Runs on every push to `main` that touches `backend/` (or manually from the Actions tab):
+**build** installs `backend/requirements.txt` into the package and checks that all functions register →
+**deploy** logs in to Azure with OpenID Connect, copies the app settings from GitHub secrets/variables into the
+Function App's environment variables, and publishes the package → **smoke test** calls `/api/health` with the
+app's function key and fails the run if the app isn't healthy.
+
+One-time setup:
+
+| Where | What |
+|---|---|
+| Azure → Managed Identities | A user-assigned identity with a federated credential for this repo's `main` branch and the **Website Contributor** role on the Function App |
+| GitHub → Settings → Secrets → Actions | Deploy identity: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`. App: `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_SEARCH_API_KEY`, `LLM_API_KEY`, `EMBEDDING_API_KEY` (and optionally the endpoints/models below) |
+| GitHub → Settings → Variables → Actions | `AZURE_FUNCTIONAPP_NAME`, `AZURE_RESOURCE_GROUP`, plus `AZURE_SEARCH_ENDPOINT`, `LLM_API_BASE_URL`, `LLM_MODEL`, `EMBEDDING_API_BASE_URL`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS`, and any optional tuning values from `.env.example` |
+
+Each app setting is read from a secret first, then a variable with the same name. Settings not defined in GitHub
+keep their current value in Azure (removing one from GitHub doesn't delete it from the Function App).
+
+The workflow's `PYTHON_VERSION` must match the Function App's Python version.

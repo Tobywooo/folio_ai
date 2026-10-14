@@ -1,0 +1,175 @@
+# Deploys backend/ to the Azure Function App on every push to main that changes the backend.
+#
+# Authentication is OpenID Connect (no Azure passwords stored in GitHub). One-time setup:
+#   Repo secrets:   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID   (the deploy managed identity)
+#   Repo variables: AZURE_FUNCTIONAPP_NAME, AZURE_RESOURCE_GROUP
+# Runtime settings (API keys, endpoints, models) are stored as GitHub secrets/variables and copied into the
+# Function App's environment variables on every deploy - see the "Sync app settings" step.
+# Based on https://learn.microsoft.com/azure/azure-functions/functions-how-to-github-actions (Python, OIDC).
+
+name: Deploy backend (Azure Functions)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  AZURE_FUNCTIONAPP_PROJECT_PATH: backend
+  PYTHON_VERSION: "3.13"            # must match the Function App's Python version (compiled packages like lxml depend on it)
+  BUILD_ARTIFACT_NAME: backend-package
+
+jobs:
+  build:
+    runs-on: ubuntu-latest           # Python function apps run on Linux
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PROJECT_PATH }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies into the package
+        run: pip install -r requirements.txt --target ".python_packages/lib/site-packages"
+
+      - name: Check the app imports and registers its functions
+        run: |
+          PYTHONPATH=".python_packages/lib/site-packages:." python -c "
+          import function_app
+          names = sorted(f.get_function_name() for f in function_app.app.get_functions())
+          print(len(names), 'functions:', ', '.join(names))
+          assert len(names) >= 14, 'expected at least 14 functions'
+          "
+          find . -name __pycache__ -type d -prune -exec rm -rf {} +
+
+      - name: Upload artifact for the deploy job
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          path: ${{ env.AZURE_FUNCTIONAPP_PROJECT_PATH }}
+          include-hidden-files: true   # keeps .python_packages
+          if-no-files-found: error
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    # No `environment:` here on purpose: it would change the OIDC subject the federated credential must match.
+    permissions:
+      id-token: write                # required for OIDC
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          path: package
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Each setting is read from a repo secret, or from a repo variable of the same name if no secret exists.
+      # Only non-empty values are written, so anything not defined in GitHub keeps its current value in Azure.
+      - name: Sync app settings from GitHub secrets / variables
+        shell: bash
+        env:
+          APP: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
+          RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING || vars.AZURE_STORAGE_CONNECTION_STRING }}
+          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT || vars.AZURE_SEARCH_ENDPOINT }}
+          AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY || vars.AZURE_SEARCH_API_KEY }}
+          AZURE_SEARCH_INDEX_NAME: ${{ secrets.AZURE_SEARCH_INDEX_NAME || vars.AZURE_SEARCH_INDEX_NAME }}
+          LLM_API_BASE_URL: ${{ secrets.LLM_API_BASE_URL || vars.LLM_API_BASE_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY || vars.LLM_API_KEY }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL || vars.LLM_MODEL }}
+          LLM_TEMPERATURE: ${{ secrets.LLM_TEMPERATURE || vars.LLM_TEMPERATURE }}
+          LLM_MAX_TOKENS: ${{ secrets.LLM_MAX_TOKENS || vars.LLM_MAX_TOKENS }}
+          EMBEDDING_API_BASE_URL: ${{ secrets.EMBEDDING_API_BASE_URL || vars.EMBEDDING_API_BASE_URL }}
+          EMBEDDING_API_KEY: ${{ secrets.EMBEDDING_API_KEY || vars.EMBEDDING_API_KEY }}
+          EMBEDDING_MODEL: ${{ secrets.EMBEDDING_MODEL || vars.EMBEDDING_MODEL }}
+          EMBEDDING_DIMENSIONS: ${{ secrets.EMBEDDING_DIMENSIONS || vars.EMBEDDING_DIMENSIONS }}
+          EMBEDDING_BATCH_SIZE: ${{ secrets.EMBEDDING_BATCH_SIZE || vars.EMBEDDING_BATCH_SIZE }}
+          CONTAINER_PDF: ${{ vars.CONTAINER_PDF }}
+          CONTAINER_PDF_ENRICHED: ${{ vars.CONTAINER_PDF_ENRICHED }}
+          CONTAINER_PPTX: ${{ vars.CONTAINER_PPTX }}
+          CONTAINER_PPTX_ENRICHED: ${{ vars.CONTAINER_PPTX_ENRICHED }}
+          CONTAINER_TXT: ${{ vars.CONTAINER_TXT }}
+          CONTAINER_TXT_ENRICHED: ${{ vars.CONTAINER_TXT_ENRICHED }}
+          CONTAINER_WEB: ${{ vars.CONTAINER_WEB }}
+          CONTAINER_WEB_ENRICHED: ${{ vars.CONTAINER_WEB_ENRICHED }}
+          CONTAINER_ARTIFACTS: ${{ vars.CONTAINER_ARTIFACTS }}
+          TABLE_PREFIX: ${{ vars.TABLE_PREFIX }}
+          CHUNK_SIZE: ${{ vars.CHUNK_SIZE }}
+          CHUNK_OVERLAP: ${{ vars.CHUNK_OVERLAP }}
+          MAX_UPLOAD_MB: ${{ vars.MAX_UPLOAD_MB }}
+          RETRIEVAL_MODE: ${{ vars.RETRIEVAL_MODE }}
+          RETRIEVAL_TOP_K: ${{ vars.RETRIEVAL_TOP_K }}
+          CHAT_HISTORY_TURNS: ${{ vars.CHAT_HISTORY_TURNS }}
+          ARTIFACT_CONTEXT_CHARS: ${{ vars.ARTIFACT_CONTEXT_CHARS }}
+        run: |
+          required="AZURE_STORAGE_CONNECTION_STRING AZURE_SEARCH_ENDPOINT AZURE_SEARCH_API_KEY
+                    LLM_API_BASE_URL LLM_API_KEY LLM_MODEL
+                    EMBEDDING_API_BASE_URL EMBEDDING_API_KEY EMBEDDING_MODEL EMBEDDING_DIMENSIONS"
+          optional="AZURE_SEARCH_INDEX_NAME LLM_TEMPERATURE LLM_MAX_TOKENS EMBEDDING_BATCH_SIZE
+                    CONTAINER_PDF CONTAINER_PDF_ENRICHED CONTAINER_PPTX CONTAINER_PPTX_ENRICHED
+                    CONTAINER_TXT CONTAINER_TXT_ENRICHED CONTAINER_WEB CONTAINER_WEB_ENRICHED CONTAINER_ARTIFACTS
+                    TABLE_PREFIX CHUNK_SIZE CHUNK_OVERLAP MAX_UPLOAD_MB RETRIEVAL_MODE RETRIEVAL_TOP_K
+                    CHAT_HISTORY_TURNS ARTIFACT_CONTEXT_CHARS"
+          missing=()
+          for name in $required; do [ -n "${!name}" ] || missing+=("$name"); done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing GitHub secrets/variables: ${missing[*]}"
+            exit 1
+          fi
+          settings=()
+          for name in $required $optional; do
+            [ -n "${!name}" ] && settings+=("$name=${!name}")
+          done
+          # --output none: the command otherwise prints every app setting, including secret values.
+          az functionapp config appsettings set -n "$APP" -g "$RG" --settings "${settings[@]}" --output none
+          echo "Updated ${#settings[@]} app settings."
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
+          package: package
+
+      - name: Smoke test /api/health
+        shell: bash
+        env:
+          APP: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
+          RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          host=$(az functionapp show -n "$APP" -g "$RG" --query defaultHostName -o tsv)
+          key=$(az functionapp keys list -n "$APP" -g "$RG" --query functionKeys.default -o tsv)
+          echo "::add-mask::$key"
+          # The app can take a minute to start after a deployment, so retry for ~3 minutes.
+          for attempt in $(seq 1 18); do
+            code=$(curl -s -o health.json -w "%{http_code}" -H "x-functions-key: $key" "https://$host/api/health" || true)
+            if [ "$code" = "200" ]; then
+              echo "Healthy: $(cat health.json)"
+              exit 0
+            fi
+            echo "Attempt $attempt: HTTP $code $(head -c 300 health.json 2>/dev/null)"
+            sleep 10
+          done
+          echo "::error::/api/health did not return 200. Check the Function App's environment variables and logs."
+          exit 1

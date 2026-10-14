@@ -158,17 +158,29 @@ jobs:
           APP: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
           RG: ${{ vars.AZURE_RESOURCE_GROUP }}
         run: |
-          host=$(az functionapp show -n "$APP" -g "$RG" --query defaultHostName -o tsv)
+          host=$(az functionapp show -n "$APP" -g "$RG" --query "defaultHostName || hostNames[0]" -o tsv)
+          if [ -z "$host" ]; then
+            echo "::error::Could not read the Function App's hostname (check AZURE_FUNCTIONAPP_NAME / AZURE_RESOURCE_GROUP)."
+            exit 1
+          fi
+          echo "Health check URL: https://$host/api/health"
           key=$(az functionapp keys list -n "$APP" -g "$RG" --query functionKeys.default -o tsv)
+          if [ -z "$key" ]; then
+            echo "::error::Could not read the Function App's default function key."
+            exit 1
+          fi
           echo "::add-mask::$key"
           # The app can take a minute to start after a deployment, so retry for ~3 minutes.
           for attempt in $(seq 1 18); do
-            code=$(curl -s -o health.json -w "%{http_code}" -H "x-functions-key: $key" "https://$host/api/health" || true)
+            rm -f health.json curl.err
+            code=$(curl -sS --max-time 30 -o health.json -w "%{http_code}" -H "x-functions-key: $key" \
+                   "https://$host/api/health" 2>curl.err || true)
             if [ "$code" = "200" ]; then
               echo "Healthy: $(cat health.json)"
               exit 0
             fi
-            echo "Attempt $attempt: HTTP $code $(head -c 300 health.json 2>/dev/null)"
+            # HTTP 000 = no response at all (DNS, TLS, network, or timeout); curl.err says which.
+            echo "Attempt $attempt: HTTP $code $(head -c 300 health.json 2>/dev/null) $(cat curl.err 2>/dev/null)"
             sleep 10
           done
           echo "::error::/api/health did not return 200. Check the Function App's environment variables and logs."

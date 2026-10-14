@@ -63,7 +63,7 @@ def wait_until_running(api: HfApi, space: str, timeout_s: int = 900) -> None:
             last = stage
         if stage in FAILED_STAGES:
             reason = (runtime.raw or {}).get("errorMessage") or "see the Space's Logs tab"
-            fail(f"Space failed with {stage}: {reason}")
+            fail(f"Space failed with {stage}: {reason[-2000:]}")
         if stage != "RUNNING":
             left_running = True
         elif left_running or time.time() - started > 120:
@@ -77,14 +77,20 @@ def check_page(api: HfApi, space: str, token: str) -> None:
     info = api.space_info(space)
     host = getattr(info, "host", None) or f"https://{space.replace('/', '-').replace('_', '-').lower()}.hf.space"
     for attempt in range(1, 13):
+        # The app can crash after the Space reports RUNNING; stop early and show the reason if it does.
+        runtime = api.get_space_runtime(space)
+        stage = str(getattr(runtime.stage, "value", runtime.stage))
+        if stage in FAILED_STAGES:
+            reason = (runtime.raw or {}).get("errorMessage") or "see the Space's Logs tab"
+            fail(f"Space failed with {stage}: {reason[-2000:]}")
         try:
             resp = requests.get(host, headers={"Authorization": f"Bearer {token}"}, timeout=30)
             if resp.status_code == 200:
                 print(f"Space is serving: {host}")
                 return
-            print(f"Attempt {attempt}: HTTP {resp.status_code}")
+            print(f"Attempt {attempt}: HTTP {resp.status_code} (stage {stage})")
         except requests.RequestException as exc:
-            print(f"Attempt {attempt}: {exc}")
+            print(f"Attempt {attempt}: {exc} (stage {stage})")
         time.sleep(10)
     fail(f"{host} did not return 200.")
 

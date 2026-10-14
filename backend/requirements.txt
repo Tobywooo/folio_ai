@@ -1,0 +1,9 @@
+azure-functions>=1.21
+azure-storage-blob>=12.19
+azure-data-tables>=12.5
+azure-search-documents>=11.5,<12
+pypdf>=4.2
+python-pptx>=1.0
+beautifulsoup4>=4.12
+requests>=2.31
+python-dotenv>=1.0

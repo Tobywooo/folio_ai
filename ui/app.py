@@ -343,8 +343,10 @@ with gr.Blocks(title="Folio AI") as demo:
 
 if __name__ == "__main__":
     username, password = os.getenv("UI_USERNAME", ""), os.getenv("UI_PASSWORD", "")
+    # Hugging Face Spaces (which sets SPACE_ID) needs the app reachable on all interfaces; locally stay on localhost.
+    default_host = "0.0.0.0" if os.getenv("SPACE_ID") else "127.0.0.1"
     demo.queue(default_concurrency_limit=4).launch(
-        server_name=os.getenv("GRADIO_SERVER_NAME", "127.0.0.1"),
+        server_name=os.getenv("GRADIO_SERVER_NAME", default_host),
         server_port=int(os.getenv("PORT") or os.getenv("GRADIO_SERVER_PORT") or 7860),
         auth=(username, password) if username and password else None,
     )

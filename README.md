@@ -168,3 +168,19 @@ Each app setting is read from a secret first, then a variable with the same name
 keep their current value in Azure (removing one from GitHub doesn't delete it from the Function App).
 
 The workflow's `PYTHON_VERSION` must match the Function App's Python version.
+
+### UI → Hugging Face Spaces (`.github/workflows/deploy-ui.yml`)
+
+Runs on every push to `main` that touches `ui/` (or manually): checks the Gradio app builds →
+`.github/scripts/deploy_space.py` copies the backend URL, function key, and optional login into the Space's secrets,
+uploads `app.py`, `api_client.py`, `requirements.txt`, and a Space `README.md` (from `ui/SPACE_README.md`) → waits
+until the Space is running and serving its page.
+
+| Where | What |
+|---|---|
+| Hugging Face | A Gradio Space, and an access token with write access to it |
+| GitHub → Secrets | `HF_TOKEN`, `BACKEND_FUNCTION_KEY`, optional `UI_USERNAME` / `UI_PASSWORD` |
+| GitHub → Variables | `HF_SPACE_ID` (e.g. `Tobywooo/folio-ai`); the backend URL defaults to `https://<AZURE_FUNCTIONAPP_HOST>/api` (override with `BACKEND_URL`) |
+
+**Storage on Spaces:** the UI keeps no data of its own (notebooks, chats, and artifacts live in Azure), so Space
+restarts or sleeping lose nothing. Free Spaces sleep after a period of inactivity and take a little while to wake.

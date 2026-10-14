@@ -1,0 +1,62 @@
+# Deploys ui/ (Gradio) to a Hugging Face Space on every push to main that changes the UI.
+#
+# One-time setup:
+#   Create the Space on huggingface.co (SDK: Gradio).
+#   Repo secrets:   HF_TOKEN (write access to the Space), BACKEND_FUNCTION_KEY,
+#                   UI_USERNAME + UI_PASSWORD (optional login for the public UI)
+#   Repo variables: HF_SPACE_ID (e.g. Tobywooo/folio-ai), AZURE_FUNCTIONAPP_HOST (already set for the backend)
+#                   BACKEND_URL (optional; defaults to https://<AZURE_FUNCTIONAPP_HOST>/api)
+# The backend URL, function key, and login are copied into the Space's secrets on every deploy.
+
+name: Deploy UI (Hugging Face Space)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ui/**"
+      - ".github/scripts/deploy_space.py"
+      - ".github/workflows/deploy-ui.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ui
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.13"   # matches python_version in ui/SPACE_README.md
+  GRADIO_VERSION: "5.50.0" # Gradio the Space runs; keep within ui/requirements.txt's range
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install UI dependencies
+        run: pip install "gradio==${{ env.GRADIO_VERSION }}" -r ui/requirements.txt huggingface_hub
+
+      - name: Check the UI builds
+        working-directory: ui
+        run: python -c "import app; assert app.demo is not None; print('Gradio UI builds')"
+
+      - name: Deploy to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL || vars.BACKEND_URL }}
+          AZURE_FUNCTIONAPP_HOST: ${{ vars.AZURE_FUNCTIONAPP_HOST }}
+          BACKEND_FUNCTION_KEY: ${{ secrets.BACKEND_FUNCTION_KEY }}
+          UI_USERNAME: ${{ secrets.UI_USERNAME }}
+          UI_PASSWORD: ${{ secrets.UI_PASSWORD }}
+          RETRIEVAL_MODE: ${{ vars.RETRIEVAL_MODE }}
+          GIT_SHA: ${{ github.sha }}
+        run: python .github/scripts/deploy_space.py

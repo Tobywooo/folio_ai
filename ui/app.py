@@ -261,7 +261,13 @@ def show_artifact(notebook_id: str | None, artifact_id: str | None):
 # ------------------------------------------------------------------------ UI
 
 
-with gr.Blocks(title="Folio AI") as demo:
+# Green for the "add something" buttons (Create, Add files, Add URL).
+CSS = """
+.green-btn { background: #16a34a !important; border-color: #15803d !important; color: #ffffff !important; }
+.green-btn:hover { background: #15803d !important; }
+"""
+
+with gr.Blocks(title="Folio AI", css=CSS) as demo:
     gr.Markdown("# Folio AI\nCreate notebooks, add sources, ask questions with citations, and generate study materials.")
 
     with gr.Row():
@@ -271,7 +277,7 @@ with gr.Blocks(title="Folio AI") as demo:
             refresh_btn = gr.Button("Refresh", size="sm")
             name_box = gr.Textbox(label="Notebook name", placeholder="e.g. Biology 101")
             with gr.Row():
-                create_btn = gr.Button("Create", variant="primary", size="sm")
+                create_btn = gr.Button("Create", variant="primary", size="sm", elem_classes=["green-btn"])
                 rename_btn = gr.Button("Rename", size="sm")
             with gr.Accordion("Delete notebook", open=False):
                 confirm_delete = gr.Checkbox(label="Confirm delete")
@@ -288,10 +294,10 @@ with gr.Blocks(title="Folio AI") as demo:
                                 file_types=[".pdf", ".pptx", ".txt"],
                                 type="filepath",
                             )
-                            upload_btn = gr.Button("Add files", variant="primary")
+                            upload_btn = gr.Button("Add files", variant="primary", elem_classes=["green-btn"])
                         with gr.Column():
                             url_box = gr.Textbox(label="Web URL", placeholder="https://...")
-                            url_btn = gr.Button("Add URL", variant="primary")
+                            url_btn = gr.Button("Add URL", variant="primary", elem_classes=["green-btn"])
                     sources_df = gr.Dataframe(headers=SOURCE_HEADERS, interactive=False, wrap=True)
                     with gr.Row():
                         source_dd = gr.Dropdown(label="Remove a source", choices=[], scale=3)

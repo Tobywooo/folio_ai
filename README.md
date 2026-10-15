@@ -5,6 +5,9 @@ Retrieval-Augmented Generation (RAG) and citations, and generate reports and qui
 
 ## Architecture
 
+Full architecture document with diagrams: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** (modules, data flow, notebook
+storage, RAG pipeline, artifact generation, deployment).
+
 ```
 Gradio UI (ui/)  ──HTTPS + function key──▶  Azure Function App (backend/, Python)
                                               │

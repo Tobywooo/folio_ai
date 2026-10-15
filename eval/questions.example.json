@@ -1,7 +1,26 @@
 [
-  "Replace these with 4-6 questions your notebook's sources can answer.",
-  "Include one factual lookup question (a specific number, name, or date).",
-  "Include one question that needs information from two different sources.",
-  "Include one question phrased with different wording than the source uses.",
-  "Include one question the sources can't answer, to check the model says so."
+  {
+    "question": "Factual lookup: ask for a specific number, name, date, or definition from one source.",
+    "expected_source": "part of that source's name",
+    "expected_text": "a short phrase that appears next to the answer",
+    "note": "tests precise retrieval"
+  },
+  {
+    "question": "Paraphrase: ask about an idea using different words than the source uses.",
+    "expected_source": "part of the source's name",
+    "note": "vector search should beat keyword here"
+  },
+  {
+    "question": "Exact term: ask about a rare keyword, acronym, or code that appears verbatim.",
+    "expected_text": "the exact term",
+    "note": "keyword search should do well here"
+  },
+  {
+    "question": "Multi-source: ask something that needs information from two different sources.",
+    "note": "check whether both sources are retrieved and cited"
+  },
+  {
+    "question": "Unanswerable: ask something the sources don't cover.",
+    "note": "the answer should say the sources don't contain it"
+  }
 ]

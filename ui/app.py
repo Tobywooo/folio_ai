@@ -31,14 +31,14 @@ except ImportError:
 backend = Backend(os.getenv("BACKEND_URL", "http://localhost:7071/api"), os.getenv("BACKEND_FUNCTION_KEY", ""))
 
 RETRIEVAL_CHOICES = [
+    ("Hybrid + semantic re-ranking (recommended)", "hybrid_semantic"),
     ("Hybrid (keyword + vector)", "hybrid"),
-    ("Hybrid + semantic re-ranking", "hybrid_semantic"),
     ("Vector only", "vector"),
     ("Keyword only", "keyword"),
 ]
-DEFAULT_MODE = os.getenv("RETRIEVAL_MODE", "hybrid")
+DEFAULT_MODE = os.getenv("RETRIEVAL_MODE", "hybrid_semantic")
 if DEFAULT_MODE not in {value for _, value in RETRIEVAL_CHOICES}:
-    DEFAULT_MODE = "hybrid"
+    DEFAULT_MODE = "hybrid_semantic"
 SOURCE_HEADERS = ["Name", "Type", "Status", "Chunks", "Added", "Error"]
 TYPE_LABELS = {"pdf": "PDF", "pptx": "PowerPoint", "txt": "Text", "url": "Web page"}
 

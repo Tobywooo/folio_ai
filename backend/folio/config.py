@@ -88,7 +88,7 @@ class Settings:
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    retrieval_mode = _optional("RETRIEVAL_MODE", "hybrid")
+    retrieval_mode = _optional("RETRIEVAL_MODE", "hybrid_semantic")  # chosen in eval/EVALUATION.md
     if retrieval_mode not in RETRIEVAL_MODES:
         raise ConfigError(f"RETRIEVAL_MODE must be one of {', '.join(RETRIEVAL_MODES)}.")
 

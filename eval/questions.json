@@ -1,0 +1,46 @@
+[
+  {
+    "question": "According to the textbook, what are the four Vs that IBM uses to describe big data?",
+    "expected_source": "Textbook",
+    "expected_text": "four Vs",
+    "note": "factual lookup; the terms also appear in table-of-contents chunks, which shouldn't count"
+  },
+  {
+    "question": "How many pieces of direct mail does Kroger send to its customers each quarter, and how are the coupons chosen?",
+    "expected_source": "Textbook",
+    "expected_text": "11 million",
+    "note": "factual lookup of a specific number buried in a 921-chunk textbook"
+  },
+  {
+    "question": "What share of data science initiatives end up not succeeding, and what typically goes wrong?",
+    "expected_source": "Overview",
+    "expected_text": "failure rate",
+    "note": "paraphrase: the slide says 'failure rate for analytics project', the question uses different words"
+  },
+  {
+    "question": "What is the data-ink ratio?",
+    "expected_text": "data-ink ratio",
+    "note": "exact term: keyword search should do well"
+  },
+  {
+    "question": "How is business analytics different from business intelligence, and what do descriptive, predictive, and prescriptive analytics each do?",
+    "expected_text": "prescriptive",
+    "note": "multi-source: the BI contrast is on the Wikipedia page, the three categories are in the textbook and Wikipedia; check both are cited"
+  },
+  {
+    "question": "Who were early pioneers of using analytics in business, long before computers?",
+    "expected_source": "Wikipedia",
+    "expected_text": "Henry Ford",
+    "note": "paraphrase over the web page, whose scraped text is fragmented across many short lines"
+  },
+  {
+    "question": "What qualities should data have before you trust it for decision making?",
+    "expected_source": "Overview",
+    "expected_text": "consistent",
+    "note": "paraphrase: the slide lists data quality as correct, complete, current, consistent, in context, controlled"
+  },
+  {
+    "question": "What was Amazon's total revenue in 2023?",
+    "note": "unanswerable: the sources predate 2023 and don't cover it; the answer should say so instead of guessing"
+  }
+]

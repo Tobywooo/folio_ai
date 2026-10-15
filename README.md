@@ -132,6 +132,13 @@ python app.py                   # opens http://127.0.0.1:7860
 
 ## RAG evaluation
 
+**Write-up: [eval/EVALUATION.md](eval/EVALUATION.md).** Four retrieval methods were compared on an 8-question set over
+a 963-chunk notebook. Hybrid search with semantic re-ranking gave the best answers (8 of 8 graded Good) and the lowest
+average response time, so it is the default (`RETRIEVAL_MODE=hybrid_semantic`). Results, grades, and snippets of every
+retrieved chunk are in [eval/results/](eval/results/).
+
+To run your own evaluation:
+
 ```bash
 cp eval/questions.example.json eval/questions.json   # then write your own questions
 python eval/run_eval.py --notebook-id <id> --modes vector hybrid_semantic

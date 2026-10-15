@@ -222,5 +222,6 @@ __marimo__/
 # Azure Functions local settings (contain secrets)
 local.settings.json
 
-# Eval questions are per-user (copy from eval/questions.example.json)
-eval/questions.json
+
+# Local test documents (large, and include copyrighted course material)
+test_files/
